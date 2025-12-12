@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Neon Asteroids</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Poki SDK (safe to leave; game still runs if SDK fails) -->
+  <script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="c" width="960" height="540" aria-label="Neon Asteroids"></canvas>
+
+    <div id="hud">
+      <div class="hud-left">
+        <div class="pill"><span id="score">0</span></div>
+        <div class="pill">Lives: <span id="lives">3</span></div>
+      </div>
+      <div class="hud-right">
+        <div class="pill">Best: <span id="best">0</span></div>
+      </div>
+    </div>
+
+    <div id="overlay" class="show">
+      <div class="card">
+        <div class="title">NEON ASTEROIDS</div>
+        <div class="sub">Tap / Press <b>Space</b> to start</div>
+        <div class="controls">
+          <div><b>Desktop</b>: WASD / Arrows to move • Space to shoot</div>
+          <div><b>Mobile</b>: Left = steer • Right = thrust • Tap FIRE</div>
+        </div>
+        <button id="startBtn" class="btn">Start</button>
+      </div>
+    </div>
+
+    <!-- Mobile controls (visible on touch devices) -->
+    <div id="mobileHelp" class="mobile-help">
+      <div class="m-row">
+        <div class="m-pill">Left: steer</div>
+        <div class="m-pill">Right: thrust</div>
+        <button id="fireBtn" class="m-fire" aria-label="Fire">FIRE</button>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
