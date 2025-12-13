@@ -188,12 +188,14 @@
   let panelOffset = 0;
   let trenchPulse = 0;
   let trenchBank = 0;
-  let currentTheme = { laneHue: 190, wallHue: 220, fog: 'rgba(8,12,22,0.7)' };
+  let currentTheme = { laneHue: 200, wallHue: 210, fog: 'rgba(12,14,18,0.74)' };
+  let portQueued = false;
+  let portSpawned = false;
+  let portDestroyed = false;
+  const FINAL_SECTION = 4;
 
   const starsFar = [];
   const starsNear = [];
-
-  const MAX_LIVES = 6;
 
   function toast(msg) {
     $toast.textContent = msg;
@@ -230,6 +232,7 @@
 
   function addObstacle(type = 'crate', opts = {}) {
     const lane = corridor();
+    const center = (lane.left + lane.right) * 0.5;
     const baseY = opts.y ?? -rand(140, 260);
     const o = {
       type,
@@ -258,6 +261,11 @@
       o.w = 54; o.h = 40; o.hp = 3.2; o.turret = true; o.hue = 340;
     } else if (type === 'supply') {
       o.w = 48; o.h = 48; o.hp = 2.6; o.special = true; o.hue = 50; o.type = 'supply';
+    } else if (type === 'port') {
+      o.w = 60; o.h = 52; o.hp = 4.2; o.hue = 215; o.port = true; o.type = 'port'; o.special = false;
+      o.x = opts.x ?? center + rand(-24, 24);
+      o.y = baseY;
+      o.fireCD = 1.6;
     }
 
     obstacles.push(o);
@@ -266,12 +274,12 @@
   function spawnSection() {
     section++;
     toast(`Section ${section}`);
-    forwardSpeed = clamp(180 + section * 18, 180, 520);
+    forwardSpeed = clamp(190 + section * 18, 190, 540);
 
     const themes = [
-      { laneHue: 190, wallHue: 220, fog: 'rgba(8, 14, 28, 0.68)' },
-      { laneHue: 310, wallHue: 260, fog: 'rgba(12, 6, 18, 0.65)' },
-      { laneHue: 120, wallHue: 180, fog: 'rgba(6, 14, 12, 0.64)' }
+      { laneHue: 205, wallHue: 220, fog: 'rgba(12, 14, 18, 0.74)' },
+      { laneHue: 210, wallHue: 240, fog: 'rgba(10, 14, 22, 0.72)' },
+      { laneHue: 195, wallHue: 205, fog: 'rgba(10, 12, 16, 0.72)' }
     ];
     currentTheme = themes[Math.floor(Math.random() * themes.length)];
 
@@ -283,6 +291,10 @@
 
     // One supply crate each section
     addObstacle('supply', { y: startY - rand(360, 520) });
+
+    if (section >= FINAL_SECTION - 1) {
+      portQueued = true;
+    }
   }
 
   function spawnPattern(pattern, startY = -220) {
@@ -305,6 +317,35 @@
         addObstacle(Math.random() > 0.6 ? 'crate' : 'pillar', { y: startY - i * 80 });
       }
     }
+  }
+
+  function spawnExhaustPort() {
+    if (portSpawned) return;
+    const lane = corridor();
+    const center = (lane.left + lane.right) * 0.5;
+    addObstacle('port', { x: center + rand(-26, 26), y: -520 });
+    portSpawned = true;
+    toast('Thermal exhaust port in sight!');
+  }
+
+  function destroyDeathStar() {
+    if (portDestroyed) return;
+    portDestroyed = true;
+    ensureAudio();
+    beep(180, 0.16, 'sawtooth', 0.08);
+    beep(120, 0.22, 'sawtooth', 0.07);
+    burst(ship.x, ship.y - 60, 20, 120, 1.3);
+    state = 'over';
+    if (score > best) {
+      best = score;
+      safeStorageSet('neonAsteroidsBest', String(best));
+      $best.textContent = String(best);
+    }
+    pokiGameplayStop();
+    $overlay.classList.add('show');
+    document.querySelector('.title').textContent = 'EXHAUST PORT DESTROYED';
+    document.querySelector('.sub').innerHTML = `Death Star explodes! Score: <b>${score}</b> • Tap / Press <b>Space</b> to fly again`;
+    $startBtn.textContent = 'Run it again';
   }
 
   function burst(x, y, baseHue = rand(160, 310), amount = 36, power = 1) {
@@ -337,7 +378,7 @@
       vy: ship.vy + dir.y * speed - forwardSpeed * 0.45,
       life: 1.1,
       t: 0,
-      hue: rand(40, 320)
+      hue: rand(-4, 16)
     });
     ensureAudio();
     beep(880 + rand(-40, 60), 0.04, 'square', 0.05);
@@ -363,14 +404,14 @@
       $best.textContent = String(best);
     }
     $overlay.classList.add('show');
-    document.querySelector('.title').textContent = 'GAME OVER';
+    document.querySelector('.title').textContent = 'SHOT DOWN';
     document.querySelector('.sub').innerHTML = `Score: <b>${score}</b> • Tap / Press <b>Space</b> to retry`;
-    $startBtn.textContent = 'Play Again';
+    $startBtn.textContent = 'Fly Again';
   }
 
   function startGame() {
     $overlay.classList.remove('show');
-    document.querySelector('.title').textContent = 'NEON TRENCH RUN';
+    document.querySelector('.title').textContent = 'DEATH STAR TRENCH RUN';
     document.querySelector('.sub').innerHTML = 'Tap / Press <b>Space</b> to start';
     $startBtn.textContent = 'Start';
 
@@ -383,6 +424,9 @@
     panelOffset = 0;
     trenchPulse = 0;
     trenchBank = 0;
+    portQueued = false;
+    portSpawned = false;
+    portDestroyed = false;
     $score.textContent = '0';
     $lives.textContent = '3';
 
@@ -426,6 +470,15 @@
     if (shootCD > 0) shootCD -= dt;
     if (ship.invuln > 0) ship.invuln -= dt;
     if (enemy && enemy.invuln > 0) enemy.invuln -= dt;
+
+    for (const s of starsFar) {
+      s.y += (s.s + forwardSpeed * 0.12) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+    for (const s of starsNear) {
+      s.y += (s.s + forwardSpeed * 0.2) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
 
     for (const s of starsFar) {
       s.y += (s.s + forwardSpeed * 0.12) * dt;
@@ -512,6 +565,10 @@
       spawnSection();
     }
 
+    if (portQueued && !portSpawned && section >= FINAL_SECTION) {
+      spawnExhaustPort();
+    }
+
     panelOffset = (panelOffset + forwardSpeed * dt) % 220;
     trenchPulse += dt * 0.7;
     trenchBank = clamp(trenchBank + (ship.vx * 0.0004), -1.4, 1.4);
@@ -566,47 +623,6 @@
       }
     }
 
-    // Enemy logic
-    if (enemy) {
-      const dx = ship.x - enemy.x;
-      const dy = ship.y - enemy.y;
-      const d = Math.max(1, hypot(dx, dy));
-      const desired = Math.min(1, d / 240);
-      const accel = vecFromAng(Math.atan2(dy, dx));
-      enemy.vx += accel.x * 160 * dt * desired;
-      enemy.vy += accel.y * 160 * dt * desired;
-
-      // Strafe / wobble to keep it moving
-      const wobble = vecFromAng(now() * 0.0025);
-      enemy.vx += wobble.x * 35 * dt;
-      enemy.vy += wobble.y * 35 * dt;
-
-      enemy.vx *= Math.pow(0.995, dt * 60);
-      enemy.vy *= Math.pow(0.995, dt * 60);
-
-      enemy.x += enemy.vx * dt;
-      enemy.y += enemy.vy * dt;
-      enemy.a = Math.atan2(ship.y - enemy.y, ship.x - enemy.x);
-      wrap(enemy);
-
-      enemy.fireCD -= dt;
-      if (enemy.fireCD <= 0) {
-        enemy.fireCD = rand(0.9, 1.4);
-        const dir = vecFromAng(enemy.a);
-        enemyBullets.push({
-          x: enemy.x + dir.x * 16,
-          y: enemy.y + dir.y * 16,
-          vx: enemy.vx + dir.x * 320,
-          vy: enemy.vy + dir.y * 320,
-          life: 1.6,
-          t: 0,
-          hue: 350
-        });
-        ensureAudio();
-        beep(220 + rand(-20, 20), 0.05, 'sawtooth', 0.04);
-      }
-    }
-
     // Particles
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
@@ -636,7 +652,7 @@
         burst(o.x, o.y, o.hue, 14, 0.8);
         if (o.hp <= 0) {
           obstacles.splice(i, 1);
-          const pts = o.turret ? 120 : o.special ? 50 : 80;
+          const pts = o.port ? 1500 : o.turret ? 120 : o.special ? 50 : 80;
           score += pts;
           $score.textContent = String(score);
           ensureAudio();
@@ -647,6 +663,9 @@
             toast('Extra life!');
             beep(520, 0.08, 'sine', 0.06);
             beep(640, 0.1, 'triangle', 0.06);
+          }
+          if (o.port) {
+            destroyDeathStar();
           }
         }
       }
@@ -688,6 +707,17 @@
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.strokeStyle = 'rgba(170, 190, 210, 0.18)';
+    for (let x = 0; x < W + 200; x += 90) {
+      ctx.beginPath();
+      ctx.moveTo(x + (trenchBank * 18), 0);
+      ctx.lineTo(x - (trenchBank * 18), H);
+      ctx.stroke();
+    }
+    ctx.restore();
+
     for (const star of starsFar) {
       ctx.fillStyle = `rgba(180, 200, 255, ${star.a})`;
       ctx.fillRect(star.x, star.y, star.r, star.r);
@@ -699,6 +729,7 @@
 
     // Trench rails and floor
     const lane = corridor();
+    const portTarget = obstacles.find((o) => o.port);
     ctx.save();
     const railGrad = ctx.createLinearGradient(0, 0, 0, H);
     railGrad.addColorStop(0, `hsla(${currentTheme.laneHue}, 80%, 70%, 0.65)`);
@@ -751,9 +782,25 @@
       ctx.rect(-o.w * 0.5, -o.h * 0.5, o.w, o.h);
       ctx.stroke();
 
-      if (o.turret) {
+      if (o.port) {
+        ctx.shadowBlur = 18;
+        ctx.strokeStyle = 'rgba(255, 210, 120, 0.85)';
+        ctx.fillStyle = 'rgba(24, 36, 56, 0.7)';
+        ctx.beginPath();
+        ctx.rect(-o.w * 0.5, -o.h * 0.5, o.w, o.h);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, TAU);
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, TAU);
+        ctx.fillStyle = 'rgba(255, 210, 120, 0.6)';
+        ctx.fill();
+      } else if (o.turret) {
         ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(255, 140, 160, 0.4)';
+        ctx.fillStyle = 'rgba(140, 255, 160, 0.32)';
         ctx.fillRect(-12, -o.h * 0.5, 24, o.h);
       } else if (o.special) {
         ctx.shadowBlur = 12;
@@ -767,14 +814,32 @@
       ctx.restore();
     }
 
+    if (portTarget) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 210, 120, 0.9)';
+      ctx.lineWidth = 2.4;
+      ctx.setLineDash([8, 6]);
+      ctx.shadowColor = 'rgba(255, 210, 120, 0.3)';
+      ctx.shadowBlur = 12;
+      ctx.strokeRect(portTarget.x - 44, portTarget.y - 38, 88, 76);
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(portTarget.x - 52, portTarget.y);
+      ctx.lineTo(portTarget.x + 52, portTarget.y);
+      ctx.moveTo(portTarget.x, portTarget.y - 46);
+      ctx.lineTo(portTarget.x, portTarget.y + 46);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // Enemy bullets
     for (const b of enemyBullets) {
       ctx.save();
       ctx.globalAlpha = clamp(b.life / 2, 0, 1);
-      ctx.strokeStyle = 'rgba(255, 160, 160, 0.9)';
+      ctx.strokeStyle = 'rgba(140, 255, 160, 0.9)';
       ctx.lineWidth = 2.2;
       ctx.shadowBlur = 18;
-      ctx.shadowColor = 'rgba(255, 120, 140, 0.6)';
+      ctx.shadowColor = 'rgba(120, 255, 170, 0.55)';
       ctx.beginPath();
       ctx.moveTo(b.x, b.y);
       ctx.lineTo(b.x - b.vx * 0.02, b.y - b.vy * 0.02);

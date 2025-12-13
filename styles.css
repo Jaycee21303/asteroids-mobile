@@ -1,7 +1,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: #070916;
+  background: #06070c;
   height: 100%;
   overflow: hidden;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
@@ -13,7 +13,7 @@ html, body {
   display: grid;
   place-items: center;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  background: radial-gradient(1200px 800px at 50% 20%, #121a3a 0%, #070916 50%, #03040a 100%);
+  background: radial-gradient(1200px 800px at 50% 20%, #18202e 0%, #0b0f19 45%, #05060c 100%);
 }
 
 canvas {
@@ -89,7 +89,7 @@ canvas {
   font-weight: 900;
   letter-spacing: 0.8px;
   color: rgba(255,255,255,0.96);
-  text-shadow: 0 0 14px rgba(72, 255, 222, 0.35), 0 0 24px rgba(144, 92, 255, 0.25);
+  text-shadow: 0 0 14px rgba(120, 200, 255, 0.32), 0 0 32px rgba(90, 140, 255, 0.18);
 }
 .sub{
   margin-top: 8px;
@@ -105,8 +105,8 @@ canvas {
 
 .btn{
   margin-top: 14px;
-  background: linear-gradient(90deg, rgba(72, 255, 222, 0.95), rgba(144, 92, 255, 0.95));
-  color: #080a14;
+  background: linear-gradient(90deg, rgba(110, 207, 255, 0.95), rgba(180, 222, 255, 0.95));
+  color: #0a0d18;
   border: 0;
   border-radius: 14px;
   padding: 10px 16px;
