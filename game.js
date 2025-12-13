@@ -449,18 +449,20 @@
   }
 
   function armOverlayStart() {
-    const maybeStart = (e) => {
-      if (state === 'menu' || state === 'over') {
-        e?.preventDefault?.();
-        e?.stopPropagation?.();
+    // Pointer + click to cover touch and mouse reliably
+    ['pointerdown', 'click'].forEach(type => {
+      $startBtn.addEventListener(type, (e) => {
+        e.stopPropagation();
         startGame();
-      }
-    };
+      }, { passive: false });
 
-    // Cover touch/mouse with both down and click to avoid dead zones
-    ['pointerdown', 'click', 'touchstart'].forEach(type => {
-      $startBtn.addEventListener(type, maybeStart, { passive: false, capture: true });
-      $overlay.addEventListener(type, maybeStart, { passive: false, capture: true });
+      $overlay.addEventListener(type, (e) => {
+        // Start even if the card is the target; this avoids dead clicks on some browsers
+        if (e.target === $overlay || $overlay.contains(e.target)) {
+          e.preventDefault();
+          startGame();
+        }
+      }, { passive: false });
     });
 
     // Keyboard focus on the button for accessibility after boot
@@ -470,11 +472,6 @@
         startGame();
       }
     }, { passive: false });
-
-    // Global safety net: first interaction anywhere starts the game
-    const globalStart = (e) => maybeStart(e);
-    window.addEventListener('pointerdown', globalStart, { passive: false, capture: true });
-    window.addEventListener('keydown', globalStart, { passive: false, capture: true });
   }
 
   // ---------------- Collision helpers ----------------
