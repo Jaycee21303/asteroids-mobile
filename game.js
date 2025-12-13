@@ -193,6 +193,8 @@
   const starsFar = [];
   const starsNear = [];
 
+  const MAX_LIVES = 6;
+
   function toast(msg) {
     $toast.textContent = msg;
     $toast.style.opacity = '1';
@@ -423,6 +425,7 @@
 
     if (shootCD > 0) shootCD -= dt;
     if (ship.invuln > 0) ship.invuln -= dt;
+    if (enemy && enemy.invuln > 0) enemy.invuln -= dt;
 
     for (const s of starsFar) {
       s.y += (s.s + forwardSpeed * 0.12) * dt;
@@ -560,6 +563,47 @@
 
       if (o.y - o.h * 0.5 > H + 80) {
         obstacles.splice(i, 1);
+      }
+    }
+
+    // Enemy logic
+    if (enemy) {
+      const dx = ship.x - enemy.x;
+      const dy = ship.y - enemy.y;
+      const d = Math.max(1, hypot(dx, dy));
+      const desired = Math.min(1, d / 240);
+      const accel = vecFromAng(Math.atan2(dy, dx));
+      enemy.vx += accel.x * 160 * dt * desired;
+      enemy.vy += accel.y * 160 * dt * desired;
+
+      // Strafe / wobble to keep it moving
+      const wobble = vecFromAng(now() * 0.0025);
+      enemy.vx += wobble.x * 35 * dt;
+      enemy.vy += wobble.y * 35 * dt;
+
+      enemy.vx *= Math.pow(0.995, dt * 60);
+      enemy.vy *= Math.pow(0.995, dt * 60);
+
+      enemy.x += enemy.vx * dt;
+      enemy.y += enemy.vy * dt;
+      enemy.a = Math.atan2(ship.y - enemy.y, ship.x - enemy.x);
+      wrap(enemy);
+
+      enemy.fireCD -= dt;
+      if (enemy.fireCD <= 0) {
+        enemy.fireCD = rand(0.9, 1.4);
+        const dir = vecFromAng(enemy.a);
+        enemyBullets.push({
+          x: enemy.x + dir.x * 16,
+          y: enemy.y + dir.y * 16,
+          vx: enemy.vx + dir.x * 320,
+          vy: enemy.vy + dir.y * 320,
+          life: 1.6,
+          t: 0,
+          hue: 350
+        });
+        ensureAudio();
+        beep(220 + rand(-20, 20), 0.05, 'sawtooth', 0.04);
       }
     }
 
