@@ -1,7 +1,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: #070916;
+  background: #06070c;
   height: 100%;
   overflow: hidden;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
@@ -12,7 +12,8 @@ html, body {
   inset: 0;
   display: grid;
   place-items: center;
-  background: radial-gradient(1200px 800px at 50% 20%, #121a3a 0%, #070916 50%, #03040a 100%);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: radial-gradient(1200px 800px at 50% 20%, #18202e 0%, #0b0f19 45%, #05060c 100%);
 }
 
 canvas {
@@ -22,17 +23,19 @@ canvas {
   max-height: 100vh;
   outline: none;
   display: block;
+  touch-action: none;
 }
 
 #hud{
   position: fixed;
   left: 16px;
   right: 16px;
-  top: 16px;
+  top: calc(10px + env(safe-area-inset-top));
   display: flex;
   justify-content: space-between;
   pointer-events: none;
   gap: 12px;
+  z-index: 12;
 }
 
 .hud-left, .hud-right{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
@@ -49,6 +52,13 @@ canvas {
   backdrop-filter: blur(10px);
 }
 
+@media (max-width: 640px) {
+  .pill { padding: 6px 10px; font-size: 12px; }
+  #hud { top: calc(8px + env(safe-area-inset-top)); gap: 8px; }
+  .card { width: min(460px, calc(100vw - 24px)); }
+  .title { font-size: 28px; }
+}
+
 #overlay{
   position: fixed;
   inset: 0;
@@ -58,6 +68,7 @@ canvas {
   opacity: 0;
   pointer-events: none;
   transition: opacity .18s ease;
+  z-index: 40;
 }
 #overlay.show{
   opacity: 1;
@@ -80,7 +91,7 @@ canvas {
   font-weight: 900;
   letter-spacing: 0.8px;
   color: rgba(255,255,255,0.96);
-  text-shadow: 0 0 14px rgba(72, 255, 222, 0.35), 0 0 24px rgba(144, 92, 255, 0.25);
+  text-shadow: 0 0 14px rgba(120, 200, 255, 0.32), 0 0 32px rgba(90, 140, 255, 0.18);
 }
 .sub{
   margin-top: 8px;
@@ -96,14 +107,15 @@ canvas {
 
 .btn{
   margin-top: 14px;
-  background: linear-gradient(90deg, rgba(72, 255, 222, 0.95), rgba(144, 92, 255, 0.95));
-  color: #080a14;
+  background: linear-gradient(90deg, rgba(110, 207, 255, 0.95), rgba(180, 222, 255, 0.95));
+  color: #0a0d18;
   border: 0;
   border-radius: 14px;
   padding: 10px 16px;
   font-weight: 900;
   cursor: pointer;
   box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  touch-action: manipulation;
 }
 .btn:active{ transform: translateY(1px); }
 
@@ -122,6 +134,7 @@ canvas {
   transition: opacity .18s ease;
   pointer-events: none;
   backdrop-filter: blur(10px);
+  z-index: 22;
 }
 
 .mobile-help{
@@ -130,6 +143,7 @@ canvas {
   padding: 0 14px;
   display: none;
   pointer-events: none;
+  z-index: 11;
 }
 .m-row{
   display: flex;
