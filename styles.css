@@ -12,6 +12,7 @@ html, body {
   inset: 0;
   display: grid;
   place-items: center;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   background: radial-gradient(1200px 800px at 50% 20%, #121a3a 0%, #070916 50%, #03040a 100%);
 }
 
@@ -22,13 +23,14 @@ canvas {
   max-height: 100vh;
   outline: none;
   display: block;
+  touch-action: none;
 }
 
 #hud{
   position: fixed;
   left: 16px;
   right: 16px;
-  top: 16px;
+  top: calc(10px + env(safe-area-inset-top));
   display: flex;
   justify-content: space-between;
   pointer-events: none;
@@ -47,6 +49,13 @@ canvas {
   font-weight: 600;
   letter-spacing: 0.2px;
   backdrop-filter: blur(10px);
+}
+
+@media (max-width: 640px) {
+  .pill { padding: 6px 10px; font-size: 12px; }
+  #hud { top: calc(8px + env(safe-area-inset-top)); gap: 8px; }
+  .card { width: min(460px, calc(100vw - 24px)); }
+  .title { font-size: 28px; }
 }
 
 #overlay{
