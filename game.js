@@ -98,6 +98,7 @@
     keys.add(e.code);
     if (e.code === 'Space' && (state === 'menu' || state === 'over')) startGame();
     if (e.code === 'Space' && state === 'game' && !paused) shoot();
+    if (e.code === 'Enter' && (state === 'menu' || state === 'over')) startGame();
   }, { passive: false });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
 
@@ -410,10 +411,13 @@
   }
 
   function startGame() {
+    // If the page failed to boot (e.g. ad-blocked SDK), still let the player start immediately.
     $overlay.classList.remove('show');
     document.querySelector('.title').textContent = 'DEATH STAR TRENCH RUN';
     document.querySelector('.sub').innerHTML = 'Tap / Press <b>Space</b> to start';
     $startBtn.textContent = 'Start';
+    paused = false;
+    lastT = now();
 
     state = 'game';
     score = 0;
@@ -443,6 +447,16 @@
   }
 
   $startBtn.addEventListener('click', () => startGame(), { passive: true });
+  $overlay.addEventListener('click', (e) => {
+    if (e.target === $overlay) startGame();
+  }, { passive: true });
+
+  // ---------------- Collision helpers ----------------
+  function circleRectHit(px, py, pr, rx, ry, rw, rh) {
+    const cx = clamp(px, rx - rw * 0.5, rx + rw * 0.5);
+    const cy = clamp(py, ry - rh * 0.5, ry + rh * 0.5);
+    return hypot(px - cx, py - cy) < pr + 4;
+  }
 
   // ---------------- Collision helpers ----------------
   function circleRectHit(px, py, pr, rx, ry, rw, rh) {
@@ -470,6 +484,15 @@
     if (shootCD > 0) shootCD -= dt;
     if (ship.invuln > 0) ship.invuln -= dt;
     if (enemy && enemy.invuln > 0) enemy.invuln -= dt;
+
+    for (const s of starsFar) {
+      s.y += (s.s + forwardSpeed * 0.12) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+    for (const s of starsNear) {
+      s.y += (s.s + forwardSpeed * 0.2) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
 
     for (const s of starsFar) {
       s.y += (s.s + forwardSpeed * 0.12) * dt;
