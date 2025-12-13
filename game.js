@@ -499,6 +499,34 @@
 
     if (shootCD > 0) shootCD -= dt;
     if (ship.invuln > 0) ship.invuln -= dt;
+    if (enemy && enemy.invuln > 0) enemy.invuln -= dt;
+
+    for (const s of starsFar) {
+      s.y += (s.s + forwardSpeed * 0.12) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+    for (const s of starsNear) {
+      s.y += (s.s + forwardSpeed * 0.2) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+
+    for (const s of starsFar) {
+      s.y += (s.s + forwardSpeed * 0.12) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+    for (const s of starsNear) {
+      s.y += (s.s + forwardSpeed * 0.2) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+
+    for (const s of starsFar) {
+      s.y += (s.s + forwardSpeed * 0.12) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+    for (const s of starsNear) {
+      s.y += (s.s + forwardSpeed * 0.2) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
 
     for (const s of starsFar) {
       s.y += (s.s + forwardSpeed * 0.12) * dt;
