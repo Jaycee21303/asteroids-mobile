@@ -411,6 +411,8 @@
   }
 
   function startGame() {
+    if (state === 'game') return; // already running
+
     // If the page failed to boot (e.g. ad-blocked SDK), still let the player start immediately.
     $overlay.classList.remove('show');
     document.querySelector('.title').textContent = 'DEATH STAR TRENCH RUN';
@@ -446,16 +448,33 @@
     pokiGameplayStart();
   }
 
-  $startBtn.addEventListener('click', () => startGame(), { passive: true });
-  $overlay.addEventListener('click', (e) => {
-    if (e.target === $overlay) startGame();
-  }, { passive: true });
+  function armOverlayStart() {
+    const maybeStart = (e) => {
+      if (state === 'menu' || state === 'over') {
+        e?.preventDefault?.();
+        e?.stopPropagation?.();
+        startGame();
+      }
+    };
 
-  // ---------------- Collision helpers ----------------
-  function circleRectHit(px, py, pr, rx, ry, rw, rh) {
-    const cx = clamp(px, rx - rw * 0.5, rx + rw * 0.5);
-    const cy = clamp(py, ry - rh * 0.5, ry + rh * 0.5);
-    return hypot(px - cx, py - cy) < pr + 4;
+    // Cover touch/mouse with both down and click to avoid dead zones
+    ['pointerdown', 'click', 'touchstart'].forEach(type => {
+      $startBtn.addEventListener(type, maybeStart, { passive: false, capture: true });
+      $overlay.addEventListener(type, maybeStart, { passive: false, capture: true });
+    });
+
+    // Keyboard focus on the button for accessibility after boot
+    $startBtn.addEventListener('keydown', (e) => {
+      if ((e.code === 'Enter' || e.code === 'Space') && (state === 'menu' || state === 'over')) {
+        e.preventDefault();
+        startGame();
+      }
+    }, { passive: false });
+
+    // Global safety net: first interaction anywhere starts the game
+    const globalStart = (e) => maybeStart(e);
+    window.addEventListener('pointerdown', globalStart, { passive: false, capture: true });
+    window.addEventListener('keydown', globalStart, { passive: false, capture: true });
   }
 
   // ---------------- Collision helpers ----------------
@@ -484,6 +503,15 @@
     if (shootCD > 0) shootCD -= dt;
     if (ship.invuln > 0) ship.invuln -= dt;
     if (enemy && enemy.invuln > 0) enemy.invuln -= dt;
+
+    for (const s of starsFar) {
+      s.y += (s.s + forwardSpeed * 0.12) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+    for (const s of starsNear) {
+      s.y += (s.s + forwardSpeed * 0.2) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
 
     for (const s of starsFar) {
       s.y += (s.s + forwardSpeed * 0.12) * dt;
@@ -923,9 +951,11 @@
     state = 'menu';
     $overlay.classList.add('show');
     setTimeout(() => { try { canvas.focus(); } catch {} }, 50);
+    setTimeout(() => { try { $startBtn.focus(); } catch {} }, 60);
   }
 
   pokiInitThen(bootGame);
+  armOverlayStart();
   window.addEventListener('pointerdown', () => ensureAudio(), { passive: true });
   window.addEventListener('keydown', () => ensureAudio(), { passive: true });
 

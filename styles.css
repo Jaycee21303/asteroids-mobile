@@ -68,10 +68,14 @@ canvas {
   opacity: 0;
   pointer-events: none;
   transition: opacity .18s ease;
-  z-index: 20;
+  z-index: 80;
 }
 #overlay.show{
   opacity: 1;
+  pointer-events: auto;
+}
+
+#overlay .card, #overlay .btn {
   pointer-events: auto;
 }
 
@@ -115,6 +119,7 @@ canvas {
   font-weight: 900;
   cursor: pointer;
   box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  touch-action: manipulation;
 }
 .btn:active{ transform: translateY(1px); }
 
