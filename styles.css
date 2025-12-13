@@ -75,6 +75,10 @@ canvas {
   pointer-events: auto;
 }
 
+#overlay .card, #overlay .btn {
+  pointer-events: auto;
+}
+
 .card{
   width: min(560px, calc(100vw - 32px));
   border-radius: 18px;
