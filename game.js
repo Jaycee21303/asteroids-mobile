@@ -458,6 +458,13 @@
     return hypot(px - cx, py - cy) < pr + 4;
   }
 
+  // ---------------- Collision helpers ----------------
+  function circleRectHit(px, py, pr, rx, ry, rw, rh) {
+    const cx = clamp(px, rx - rw * 0.5, rx + rw * 0.5);
+    const cy = clamp(py, ry - rh * 0.5, ry + rh * 0.5);
+    return hypot(px - cx, py - cy) < pr + 4;
+  }
+
   // ---------------- Main loop ----------------
   function step() {
     const t = now();
@@ -476,6 +483,25 @@
 
     if (shootCD > 0) shootCD -= dt;
     if (ship.invuln > 0) ship.invuln -= dt;
+    if (enemy && enemy.invuln > 0) enemy.invuln -= dt;
+
+    for (const s of starsFar) {
+      s.y += (s.s + forwardSpeed * 0.12) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+    for (const s of starsNear) {
+      s.y += (s.s + forwardSpeed * 0.2) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+
+    for (const s of starsFar) {
+      s.y += (s.s + forwardSpeed * 0.12) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
+    for (const s of starsNear) {
+      s.y += (s.s + forwardSpeed * 0.2) * dt;
+      if (s.y > H + 6) { s.y = -6; s.x = rand(0, W); }
+    }
 
     for (const s of starsFar) {
       s.y += (s.s + forwardSpeed * 0.12) * dt;
