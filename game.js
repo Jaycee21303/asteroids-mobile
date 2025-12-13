@@ -77,22 +77,16 @@
     const wh = window.innerHeight;
     DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
-    // Keep a 16:9 logical space but scale to fit screen
-    const targetAR = 16 / 9;
-    let logicalW = ww;
-    let logicalH = wh;
-    if (logicalW / logicalH > targetAR) logicalW = logicalH * targetAR;
-    else logicalH = logicalW / targetAR;
-
-    W = Math.round(logicalW);
-    H = Math.round(logicalH);
+    // Fill the whole viewport while respecting device pixel ratio
+    W = Math.max(480, Math.round(ww));
+    H = Math.max(270, Math.round(wh));
 
     canvas.width  = Math.round(W * DPR);
     canvas.height = Math.round(H * DPR);
     canvas.style.width  = ww + 'px';
     canvas.style.height = wh + 'px';
 
-    ctx.setTransform(DPR, 0, 0, DPR, (ww - W) / 2, (wh - H) / 2);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
   window.addEventListener('resize', resize, { passive: true });
   resize();
@@ -182,6 +176,9 @@
   const bullets = [];
   const asteroids = [];
   const particles = [];
+  const enemyBullets = [];
+
+  let enemy = null;
 
   let score = 0;
   let lives = 3;
@@ -194,6 +191,8 @@
   let lastT = now();
   let shootCD = 0;
   let wave = 0;
+
+  const MAX_LIVES = 6;
 
   function toast(msg) {
     $toast.textContent = msg;
@@ -209,7 +208,7 @@
     ship.invuln = 1.2;
   }
 
-  function spawnAsteroid(size = 3, x = null, y = null) {
+  function spawnAsteroid(size = 3, x = null, y = null, special = false) {
     const radius = size === 3 ? rand(38, 56) : size === 2 ? rand(24, 36) : rand(14, 22);
     let ax = x ?? rand(0, W);
     let ay = y ?? rand(0, H);
@@ -241,7 +240,8 @@
       size,
       verts,
       spin: rand(-1.4, 1.4),
-      rot: rand(0, TAU)
+      rot: rand(0, TAU),
+      special
     });
   }
 
@@ -249,6 +249,12 @@
     wave++;
     const count = 2 + Math.min(6, wave);
     for (let i = 0; i < count; i++) spawnAsteroid(3);
+
+    // One special asteroid per wave that grants an extra life when destroyed
+    spawnAsteroid(2, null, null, true);
+
+    // Enemy arrives starting on wave 2
+    if (wave >= 2 && !enemy) spawnEnemy();
     toast(`Wave ${wave}`);
   }
 
@@ -297,6 +303,21 @@
     }
   }
 
+  function spawnEnemy() {
+    const ang = rand(0, TAU);
+    const dist = Math.min(W, H) * 0.35;
+    const pos = vecFromAng(ang);
+    enemy = {
+      x: clamp(ship.x + pos.x * dist, 40, W - 40),
+      y: clamp(ship.y + pos.y * dist, 40, H - 40),
+      vx: 0, vy: 0,
+      a: ang + Math.PI,
+      fireCD: 1.5,
+      health: 3,
+      invuln: 0.8
+    };
+  }
+
   function killShip() {
     lives--;
     $lives.textContent = String(lives);
@@ -340,8 +361,10 @@
     bullets.length = 0;
     asteroids.length = 0;
     particles.length = 0;
+    enemyBullets.length = 0;
 
     resetShip();
+    enemy = null;
     spawnWave();
 
     ensureAudio();
@@ -369,6 +392,7 @@
     // cooldowns
     if (shootCD > 0) shootCD -= dt;
     if (ship.invuln > 0) ship.invuln -= dt;
+    if (enemy && enemy.invuln > 0) enemy.invuln -= dt;
 
     // Inputs
     const left  = keys.has('ArrowLeft') || keys.has('KeyA');
@@ -437,12 +461,64 @@
       if (b.life <= 0) bullets.splice(i, 1);
     }
 
+    // Enemy bullets
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      const b = enemyBullets[i];
+      b.t += dt;
+      b.life -= dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      wrap(b);
+      if (b.life <= 0) enemyBullets.splice(i, 1);
+    }
+
     // Asteroids
     for (const a of asteroids) {
       a.rot += a.spin * dt;
       a.x += a.vx * dt;
       a.y += a.vy * dt;
       wrap(a);
+    }
+
+    // Enemy logic
+    if (enemy) {
+      const dx = ship.x - enemy.x;
+      const dy = ship.y - enemy.y;
+      const d = Math.max(1, hypot(dx, dy));
+      const desired = Math.min(1, d / 240);
+      const accel = vecFromAng(Math.atan2(dy, dx));
+      enemy.vx += accel.x * 160 * dt * desired;
+      enemy.vy += accel.y * 160 * dt * desired;
+
+      // Strafe / wobble to keep it moving
+      const wobble = vecFromAng(now() * 0.0025);
+      enemy.vx += wobble.x * 35 * dt;
+      enemy.vy += wobble.y * 35 * dt;
+
+      enemy.vx *= Math.pow(0.995, dt * 60);
+      enemy.vy *= Math.pow(0.995, dt * 60);
+
+      enemy.x += enemy.vx * dt;
+      enemy.y += enemy.vy * dt;
+      enemy.a = Math.atan2(ship.y - enemy.y, ship.x - enemy.x);
+      wrap(enemy);
+
+      enemy.fireCD -= dt;
+      if (enemy.fireCD <= 0) {
+        enemy.fireCD = rand(0.9, 1.4);
+        const dir = vecFromAng(enemy.a);
+        enemyBullets.push({
+          x: enemy.x + dir.x * 16,
+          y: enemy.y + dir.y * 16,
+          vx: enemy.vx + dir.x * 320,
+          vy: enemy.vy + dir.y * 320,
+          life: 1.6,
+          t: 0,
+          hue: 350
+        });
+        ensureAudio();
+        beep(220 + rand(-20, 20), 0.05, 'sawtooth', 0.04);
+      }
     }
 
     // Particles
@@ -473,12 +549,22 @@
       }
       if (hit) {
         asteroids.splice(i, 1);
-        splitAsteroid(a);
-        const pts = a.size === 3 ? 20 : a.size === 2 ? 50 : 100;
-        score += pts;
-        $score.textContent = String(score);
-        ensureAudio();
-        beep(320 + pts * 2 + rand(-40, 40), 0.05, 'triangle', 0.06);
+        if (a.special) {
+          burst(a.x, a.y, 50, 60, 1.1);
+          lives = Math.min(MAX_LIVES, lives + 1);
+          $lives.textContent = String(lives);
+          toast('Extra life!');
+          ensureAudio();
+          beep(520, 0.08, 'sine', 0.06);
+          beep(640, 0.1, 'triangle', 0.06);
+        } else {
+          splitAsteroid(a);
+          const pts = a.size === 3 ? 20 : a.size === 2 ? 50 : 100;
+          score += pts;
+          $score.textContent = String(score);
+          ensureAudio();
+          beep(320 + pts * 2 + rand(-40, 40), 0.05, 'triangle', 0.06);
+        }
       }
     }
 
@@ -490,6 +576,72 @@
           ship.invuln = 1.2;
           killShip();
           break;
+        }
+      }
+
+      for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        const b = enemyBullets[i];
+        if (hypot(b.x - ship.x, b.y - ship.y) < ship.r + 6) {
+          enemyBullets.splice(i, 1);
+          ship.invuln = 1.2;
+          killShip();
+          break;
+        }
+      }
+
+      if (enemy) {
+        const d = hypot(enemy.x - ship.x, enemy.y - ship.y);
+        if (d < 22) {
+          ship.invuln = 1.2;
+          killShip();
+        }
+      }
+    }
+
+    // Bullets vs enemy
+    if (enemy) {
+      for (let j = bullets.length - 1; j >= 0; j--) {
+        const b = bullets[j];
+        if (hypot(b.x - enemy.x, b.y - enemy.y) < 16) {
+          bullets.splice(j, 1);
+          if (enemy.invuln <= 0) enemy.health -= 1;
+          burst(b.x, b.y, 320, 18, 0.6);
+          ensureAudio();
+          beep(420, 0.05, 'square', 0.05);
+          break;
+        }
+      }
+
+      if (enemy && enemy.health <= 0) {
+        burst(enemy.x, enemy.y, 300, 70, 1.4);
+        score += 250;
+        $score.textContent = String(score);
+        enemy = null;
+        toast('Enemy destroyed!');
+        ensureAudio();
+        beep(260, 0.08, 'triangle', 0.07);
+        beep(320, 0.1, 'triangle', 0.06);
+      }
+    }
+
+    // Asteroids vs enemy
+    if (enemy) {
+      for (const a of asteroids) {
+        if (hypot(a.x - enemy.x, a.y - enemy.y) < a.r + 12) {
+          if (enemy.invuln <= 0) enemy.health -= Math.max(1, 4 - a.size);
+          burst(a.x, a.y, 200, 30, 1);
+          a.hitByEnemy = true;
+        }
+      }
+      for (let i = asteroids.length - 1; i >= 0; i--) {
+        const a = asteroids[i];
+        if (a.hitByEnemy) {
+          asteroids.splice(i, 1);
+          if (a.special) {
+            burst(a.x, a.y, 50, 40, 1);
+          } else {
+            splitAsteroid(a);
+          }
         }
       }
     }
@@ -511,7 +663,7 @@
   function clear() {
     // Fill background
     ctx.save();
-    ctx.setTransform(DPR, 0, 0, DPR, (window.innerWidth - W) / 2, (window.innerHeight - H) / 2);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.fillStyle = '#070916';
     ctx.fillRect(0, 0, W, H);
 
@@ -546,7 +698,7 @@
 
     // confine drawing to logical game rect centered in screen
     ctx.save();
-    ctx.setTransform(DPR, 0, 0, DPR, (window.innerWidth - W) / 2, (window.innerHeight - H) / 2);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
     // particles
     for (const p of particles) {
@@ -568,6 +720,20 @@
       ctx.restore();
     }
 
+    // enemy bullets
+    for (const b of enemyBullets) {
+      drawGlowCircle(b.x, b.y, 3, b.hue, 1, 18);
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = 'rgba(255, 120, 120, 0.7)';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(b.x - b.vx * 0.018, b.y - b.vy * 0.018);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // asteroids
     for (const a of asteroids) {
       ctx.save();
@@ -575,9 +741,11 @@
       ctx.rotate(a.rot);
 
       // glow outline
+      const stroke = a.special ? 'rgba(255, 215, 120, 0.8)' : 'rgba(210, 235, 255, 0.65)';
+      const shadow = a.special ? 'rgba(255, 185, 110, 0.5)' : 'rgba(120, 195, 255, 0.25)';
       ctx.shadowBlur = 18;
-      ctx.shadowColor = 'rgba(120, 195, 255, 0.25)';
-      ctx.strokeStyle = 'rgba(210, 235, 255, 0.65)';
+      ctx.shadowColor = shadow;
+      ctx.strokeStyle = stroke;
       ctx.lineWidth = 2;
 
       ctx.beginPath();
@@ -592,8 +760,37 @@
 
       // subtle fill
       ctx.shadowBlur = 0;
-      ctx.fillStyle = 'rgba(100, 120, 160, 0.12)';
+      ctx.fillStyle = a.special ? 'rgba(255, 210, 140, 0.18)' : 'rgba(100, 120, 160, 0.12)';
       ctx.fill();
+
+      ctx.restore();
+    }
+
+    // enemy ship
+    if (enemy) {
+      ctx.save();
+      ctx.translate(enemy.x, enemy.y);
+      ctx.rotate(enemy.a);
+      const blink = enemy.invuln > 0 ? (Math.sin(now() * 0.02) > 0 ? 0.4 : 1) : 1;
+      ctx.globalAlpha = blink;
+
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = 'rgba(255, 125, 125, 0.6)';
+      ctx.strokeStyle = 'rgba(255, 180, 180, 0.9)';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(-14, -10);
+      ctx.lineTo(16, 0);
+      ctx.lineTo(-14, 10);
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255, 120, 160, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(-8, -6);
+      ctx.lineTo(-8, 6);
+      ctx.stroke();
 
       ctx.restore();
     }
